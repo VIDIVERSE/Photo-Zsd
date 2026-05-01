@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bildformat-Tool</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0f11;
+    --surface: #16181c;
+    --surface2: #1e2128;
+    --border: #2a2d36;
+    --border-active: #4f8ef7;
+    --accent: #4f8ef7;
+    --accent-dim: rgba(79,142,247,0.12);
+    --accent-glow: rgba(79,142,247,0.25);
+    --text: #eef0f5;
+    --muted: #6b7280;
+    --subtle: #3a3f4b;
+    --green: #34d399;
+    --green-dim: rgba(52,211,153,0.12);
+    --radius: 10px;
+    --radius-lg: 16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Sora', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  /* background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 48px 48px;
+    opacity: 0.25;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative; z-index: 1;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 40px 24px 60px;
+  }
+
+  header {
+    display: flex; align-items: baseline; gap: 16px;
+    margin-bottom: 36px;
+  }
+
+  header h1 {
+    font-size: 22px; font-weight: 600; letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  header .mono {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; color: var(--accent);
+    background: var(--accent-dim);
+    padding: 3px 8px; border-radius: 4px;
+    border: 1px solid rgba(79,142,247,0.25);
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 20px;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    display: flex; flex-direction: column; gap: 16px;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+  }
+
+  .panel-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  /* DROP ZONE */
+  #drop-zone {
+    background: var(--surface);
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius-lg);
+    padding: 28px 16px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    text-align: center;
+  }
+  #drop-zone:hover, #drop-zone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+  #drop-zone svg { opacity: 0.5; }
+  #drop-zone .dz-title { font-size: 13px; font-weight: 500; color: var(--text); }
+  #drop-zone .dz-sub { font-size: 11px; color: var(--muted); }
+
+  /* FORMAT BUTTONS */
+  .fmt-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+  }
+
+  .fmt-btn {
+    padding: 8px 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface2);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+    font-family: 'Sora', sans-serif;
+  }
+  .fmt-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+  .fmt-btn.active {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .fmt-ratio {
+    display: block; font-size: 13px; font-weight: 600; color: var(--text);
+    font-family: 'DM Mono', monospace;
+  }
+  .fmt-name {
+    display: block; font-size: 10px; color: var(--muted); margin-top: 2px;
+  }
+
+  /* OUTPUT CONTROLS */
+  .ctrl-row {
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .ctrl-item { display: flex; flex-direction: column; gap: 5px; }
+  .ctrl-label { font-size: 11px; color: var(--muted); }
+  select, .sl-wrap {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 7px 10px;
+    outline: none;
+    transition: border-color 0.15s;
+    appearance: none;
+    cursor: pointer;
+  }
+  select:focus { border-color: var(--accent); }
+
+  .sl-wrap {
+    display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+  }
+  input[type=range] {
+    flex: 1; height: 3px; accent-color: var(--accent);
+    background: var(--border); border-radius: 2px; outline: none;
+    cursor: pointer;
+  }
+  .sl-val { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); min-width: 32px; text-align: right; }
+
+  .dl-btn {
+    width: 100%; padding: 11px;
+    border-radius: var(--radius);
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #fff; font-family: 'Sora', sans-serif;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+    letter-spacing: 0.01em;
+  }
+  .dl-btn:hover { opacity: 0.88; }
+  .dl-btn:active { transform: scale(0.98); }
+  .dl-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* CANVAS AREA */
+  .canvas-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    display: flex; flex-direction: column; gap: 14px;
+    min-height: 400px;
+  }
+
+  .canvas-top {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .info-chip {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; color: var(--green);
+    background: var(--green-dim);
+    padding: 4px 10px; border-radius: 6px;
+    border: 1px solid rgba(52,211,153,0.2);
+    transition: opacity 0.3s;
+  }
+  .info-chip.hidden { opacity: 0; }
+
+  .canvas-wrapper {
+    flex: 1;
+    background: repeating-conic-gradient(#1e2128 0% 25%, #252830 0% 50%) 0 0 / 20px 20px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+    min-height: 320px;
+  }
+
+  #empty-state {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    pointer-events: none;
+  }
+  #empty-state svg { opacity: 0.2; }
+  #empty-state p { font-size: 13px; color: var(--muted); }
+
+  canvas#preview { display: block; max-width: 100%; max-height: 100%; }
+
+  .crop-overlay {
+    position: absolute;
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
+    cursor: move;
+    display: none;
+  }
+  .crop-overlay::before, .crop-overlay::after {
+    content: '';
+    position: absolute;
+    background: var(--accent);
+  }
+  /* rule of thirds */
+  .crop-overlay .grid-h, .crop-overlay .grid-v { position: absolute; background: rgba(79,142,247,0.2); pointer-events: none; }
+  .crop-overlay .grid-h { left: 0; right: 0; height: 1px; }
+  .crop-overlay .grid-v { top: 0; bottom: 0; width: 1px; }
+
+  /* handles */
+  .handle {
+    position: absolute; width: 12px; height: 12px;
+    background: var(--accent); border-radius: 2px;
+    border: 1.5px solid #fff;
+  }
+  .handle.tl { top: -6px; left: -6px; cursor: nwse-resize; }
+  .handle.tr { top: -6px; right: -6px; cursor: nesw-resize; }
+  .handle.bl { bottom: -6px; left: -6px; cursor: nesw-resize; }
+  .handle.br { bottom: -6px; right: -6px; cursor: nwse-resize; }
+
+  /* footer info */
+  .size-info {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; color: var(--muted);
+    display: flex; gap: 20px;
+  }
+  .size-info span { color: var(--text); }
+
+  @media (max-width: 700px) {
+    .layout { grid-template-columns: 1fr; }
+    .fmt-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <h1>Bildformat-Tool</h1>
+    <span class="mono">v1.0</span>
+  </header>
+
+  <div class="layout">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+
+      <!-- Drop Zone -->
+      <div id="drop-zone" onclick="document.getElementById('file-inp').click()">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="3"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <path d="M21 15l-5-5L5 21"/>
+        </svg>
+        <div class="dz-title">Bild laden</div>
+        <div class="dz-sub">Drag & Drop oder klicken<br>PNG · JPG · WebP · GIF · BMP</div>
+      </div>
+      <input type="file" id="file-inp" accept="image/*" style="display:none">
+
+      <!-- Formats -->
+      <div class="panel">
+        <div class="panel-title">Seitenverhältnis</div>
+        <div class="fmt-grid" id="fmt-grid"></div>
+      </div>
+
+      <!-- Output -->
+      <div class="panel">
+        <div class="panel-title">Ausgabe</div>
+        <div class="ctrl-row">
+          <div class="ctrl-item">
+            <span class="ctrl-label">Dateiformat</span>
+            <select id="out-fmt">
+              <option value="image/jpeg">JPEG</option>
+              <option value="image/png">PNG</option>
+              <option value="image/webp">WebP</option>
+            </select>
+          </div>
+          <div class="ctrl-item">
+            <span class="ctrl-label">Qualität</span>
+            <div class="sl-wrap">
+              <input type="range" min="50" max="100" value="90" id="quality">
+              <span class="sl-val" id="q-out">90%</span>
+            </div>
+          </div>
+          <button class="dl-btn" id="dl-btn" disabled>Herunterladen</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- MAIN CANVAS -->
+    <div class="canvas-panel">
+      <div class="canvas-top">
+        <span class="panel-title" style="margin:0">Vorschau &amp; Zuschnitt</span>
+        <span class="info-chip hidden" id="info-chip">–</span>
+      </div>
+
+      <div class="canvas-wrapper" id="canvas-wrapper">
+        <div id="empty-state">
+          <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round">
+            <rect x="3" y="3" width="18" height="18" rx="3"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <path d="M21 15l-5-5L5 21"/>
+          </svg>
+          <p>Kein Bild geladen</p>
+        </div>
+        <canvas id="preview" style="display:none"></canvas>
+        <div class="crop-overlay" id="crop-overlay">
+          <div class="grid-h" style="top:33.33%"></div>
+          <div class="grid-h" style="top:66.66%"></div>
+          <div class="grid-v" style="left:33.33%"></div>
+          <div class="grid-v" style="left:66.66%"></div>
+          <div class="handle tl" data-corner="tl"></div>
+          <div class="handle tr" data-corner="tr"></div>
+          <div class="handle bl" data-corner="bl"></div>
+          <div class="handle br" data-corner="br"></div>
+        </div>
+      </div>
+
+      <div class="size-info" id="size-info">
+        <div>Original: <span id="orig-size">–</span></div>
+        <div>Zuschnitt: <span id="crop-size">–</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const FORMATS = [
+  { label:'16:9',  ratio:16/9,   name:'Widescreen' },
+  { label:'4:3',   ratio:4/3,    name:'Standard' },
+  { label:'1:1',   ratio:1,      name:'Quadrat' },
+  { label:'3:2',   ratio:3/2,    name:'Foto' },
+  { label:'2:3',   ratio:2/3,    name:'Portrait' },
+  { label:'9:16',  ratio:9/16,   name:'Story' },
+  { label:'21:9',  ratio:21/9,   name:'Ultra-Wide' },
+  { label:'5:4',   ratio:5/4,    name:'Print' },
+  { label:'4:5',   ratio:4/5,    name:'Instagram' },
+  { label:'3:4',   ratio:3/4,    name:'A4-ähnlich' },
+  { label:'Frei',  ratio:null,   name:'Manuell' },
+];
+
+let img = null, selFmt = FORMATS[0], scale = 1;
+let cropX = 0, cropY = 0, cropW = 0, cropH = 0;
+
+const dropZone    = document.getElementById('drop-zone');
+const fileInp     = document.getElementById('file-inp');
+const fmtGrid     = document.getElementById('fmt-grid');
+const preview     = document.getElementById('preview');
+const cropOverlay = document.getElementById('crop-overlay');
+const emptyState  = document.getElementById('empty-state');
+const infoChip    = document.getElementById('info-chip');
+const origSizeEl  = document.getElementById('orig-size');
+const cropSizeEl  = document.getElementById('crop-size');
+const qualSlider  = document.getElementById('quality');
+const qOut        = document.getElementById('q-out');
+const dlBtn       = document.getElementById('dl-btn');
+const wrapper     = document.getElementById('canvas-wrapper');
+
+/* Build format buttons */
+FORMATS.forEach((f, i) => {
+  const btn = document.createElement('button');
+  btn.className = 'fmt-btn' + (i===0?' active':'');
+  btn.innerHTML = `<span class="fmt-ratio">${f.label}</span><span class="fmt-name">${f.name}</span>`;
+  btn.onclick = () => {
+    document.querySelectorAll('.fmt-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    selFmt = f;
+    if (img) resetCrop();
+  };
+  fmtGrid.appendChild(btn);
+});
+
+qualSlider.oninput = () => qOut.textContent = qualSlider.value + '%';
+
+/* Drag & Drop */
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) loadFile(f);
+});
+fileInp.onchange = e => { if(e.target.files[0]) loadFile(e.target.files[0]); };
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    img = new Image();
+    img.onload = () => {
+      origSizeEl.textContent = img.naturalWidth + ' × ' + img.naturalHeight + ' px';
+      emptyState.style.display = 'none';
+      preview.style.display = 'block';
+      cropOverlay.style.display = 'block';
+      dlBtn.disabled = false;
+      drawPreview();
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function drawPreview() {
+  const maxW = wrapper.clientWidth - 2;
+  const maxH = Math.max(wrapper.clientHeight - 2, 320);
+  let dw = img.naturalWidth, dh = img.naturalHeight;
+  scale = Math.min(maxW / dw, maxH / dh, 1);
+  dw = Math.round(dw * scale); dh = Math.round(dh * scale);
+  preview.width = dw; preview.height = dh;
+  const ctx = preview.getContext('2d');
+  ctx.drawImage(img, 0, 0, dw, dh);
+  resetCrop();
+}
+
+function resetCrop() {
+  const dw = preview.width, dh = preview.height;
+  if (!selFmt.ratio) {
+    cropX=0; cropY=0; cropW=dw; cropH=dh;
+  } else {
+    const r = selFmt.ratio;
+    let w=dw, h=Math.round(w/r);
+    if(h>dh){h=dh; w=Math.round(h*r);}
+    cropX=Math.round((dw-w)/2); cropY=Math.round((dh-h)/2); cropW=w; cropH=h;
+  }
+  positionOverlay();
+}
+
+function positionOverlay() {
+  const pr = preview.getBoundingClientRect();
+  const wr = wrapper.getBoundingClientRect();
+  const ox = pr.left - wr.left, oy = pr.top - wr.top;
+  cropOverlay.style.left   = (ox + cropX) + 'px';
+  cropOverlay.style.top    = (oy + cropY) + 'px';
+  cropOverlay.style.width  = cropW + 'px';
+  cropOverlay.style.height = cropH + 'px';
+  const rw = Math.round(cropW/scale), rh = Math.round(cropH/scale);
+  cropSizeEl.textContent = rw + ' × ' + rh + ' px';
+  infoChip.textContent = selFmt.label + '  —  ' + rw + '×' + rh;
+  infoChip.classList.remove('hidden');
+}
+
+/* Drag crop overlay */
+let dragStart = null, cropStart = null, resizeCorner = null, resizeStart = null;
+
+cropOverlay.addEventListener('pointerdown', e => {
+  if (e.target.dataset.corner) return;
+  e.preventDefault(); cropOverlay.setPointerCapture(e.pointerId);
+  dragStart = {x:e.clientX, y:e.clientY};
+  cropStart = {x:cropX, y:cropY};
+});
+cropOverlay.addEventListener('pointermove', e => {
+  if(!dragStart) return;
+  const dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
+  cropX = Math.max(0, Math.min(preview.width - cropW, cropStart.x + dx));
+  cropY = Math.max(0, Math.min(preview.height - cropH, cropStart.y + dy));
+  positionOverlay();
+});
+cropOverlay.addEventListener('pointerup', () => { dragStart=null; });
+
+/* Resize handles */
+document.querySelectorAll('.handle').forEach(h => {
+  h.addEventListener('pointerdown', e => {
+    e.stopPropagation(); e.preventDefault();
+    h.setPointerCapture(e.pointerId);
+    resizeCorner = h.dataset.corner;
+    resizeStart = {x:e.clientX, y:e.clientY, cropX, cropY, cropW, cropH};
+  });
+  h.addEventListener('pointermove', e => {
+    if(!resizeCorner) return;
+    const dx = e.clientX - resizeStart.x, dy = e.clientY - resizeStart.y;
+    let nx=resizeStart.cropX, ny=resizeStart.cropY, nw=resizeStart.cropW, nh=resizeStart.cropH;
+    const MIN=30;
+    if(resizeCorner==='br'){
+      nw = Math.max(MIN, Math.min(preview.width-nx, nw+dx));
+      nh = selFmt.ratio ? nw/selFmt.ratio : Math.max(MIN, Math.min(preview.height-ny, nh+dy));
+    } else if(resizeCorner==='bl'){
+      const w2 = Math.max(MIN, nw-dx);
+      nx = Math.max(0, resizeStart.cropX + resizeStart.cropW - w2);
+      nw = resizeStart.cropX + resizeStart.cropW - nx;
+      nh = selFmt.ratio ? nw/selFmt.ratio : Math.max(MIN, nh+dy);
+    } else if(resizeCorner==='tr'){
+      nw = Math.max(MIN, Math.min(preview.width-nx, nw+dx));
+      if(selFmt.ratio){ nh = nw/selFmt.ratio; ny = resizeStart.cropY + resizeStart.cropH - nh; }
+      else { nh = Math.max(MIN, nh-dy); ny = resizeStart.cropY + resizeStart.cropH - nh; }
+    } else if(resizeCorner==='tl'){
+      const w2 = Math.max(MIN, nw-dx);
+      nx = Math.max(0, resizeStart.cropX + resizeStart.cropW - w2);
+      nw = resizeStart.cropX + resizeStart.cropW - nx;
+      if(selFmt.ratio){ nh = nw/selFmt.ratio; ny = resizeStart.cropY + resizeStart.cropH - nh; }
+      else { nh = Math.max(MIN, nh-dy); ny = resizeStart.cropY + resizeStart.cropH - nh; }
+    }
+    if(nx<0){nw+=nx;nx=0;} if(ny<0){nh+=ny;ny=0;}
+    if(nx+nw>preview.width) nw=preview.width-nx;
+    if(ny+nh>preview.height) nh=preview.height-ny;
+    cropX=Math.round(nx); cropY=Math.round(ny); cropW=Math.round(nw); cropH=Math.round(nh);
+    positionOverlay();
+  });
+  h.addEventListener('pointerup', () => { resizeCorner=null; });
+});
+
+window.addEventListener('resize', () => { if(img) drawPreview(); });
+
+dlBtn.onclick = () => {
+  if(!img) return;
+  const rx = Math.round(cropX/scale), ry = Math.round(cropY/scale);
+  const rw = Math.round(cropW/scale), rh = Math.round(cropH/scale);
+  const out = document.createElement('canvas');
+  out.width=rw; out.height=rh;
+  out.getContext('2d').drawImage(img, rx, ry, rw, rh, 0, 0, rw, rh);
+  const fmt = document.getElementById('out-fmt').value;
+  const qual = parseInt(qualSlider.value)/100;
+  const ext = fmt==='image/png'?'png':fmt==='image/webp'?'webp':'jpg';
+  out.toBlob(blob => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'bild-' + selFmt.label.replace(':','x') + '.' + ext;
+    a.click();
+  }, fmt, qual);
+};
+</script>
+</body>
+</html>
